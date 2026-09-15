@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.logisticsRoutes = void 0;
+const express_1 = require("express");
+const logistics_controller_1 = require("./logistics.controller");
+const auth_middleware_1 = require("../../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../../middlewares/rbac.middleware");
+const router = (0, express_1.Router)();
+router.post('/parcels', auth_middleware_1.authenticate, (0, rbac_middleware_1.requirePermission)(rbac_middleware_1.Permission.DISPATCH_ORDER), (req, res) => logistics_controller_1.logisticsController.createParcel(req, res));
+router.get('/parcels/:consignmentId/track', (req, res) => logistics_controller_1.logisticsController.trackParcel(req, res));
+router.post('/webhook/:courier', (req, res) => logistics_controller_1.logisticsController.handleCourierWebhook(req, res));
+exports.logisticsRoutes = router;

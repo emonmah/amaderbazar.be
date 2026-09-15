@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.adminRoutes = void 0;
+const express_1 = require("express");
+const admin_controller_1 = require("./admin.controller");
+const auth_middleware_1 = require("../../middlewares/auth.middleware");
+const rbac_middleware_1 = require("../../middlewares/rbac.middleware");
+const router = (0, express_1.Router)();
+router.get('/orders/kanban', auth_middleware_1.authenticate, (0, rbac_middleware_1.requirePermission)(rbac_middleware_1.Permission.VIEW_ORDERS), (req, res) => admin_controller_1.adminController.getKanbanOrders(req, res));
+router.get('/inventory/matrix', auth_middleware_1.authenticate, (0, rbac_middleware_1.requirePermission)(rbac_middleware_1.Permission.VIEW_INVENTORY), (req, res) => admin_controller_1.adminController.getInventoryMatrix(req, res));
+router.post('/orders/:id/generate-invoice', auth_middleware_1.authenticate, (0, rbac_middleware_1.requirePermission)(rbac_middleware_1.Permission.GENERATE_INVOICE), (req, res) => admin_controller_1.adminController.triggerInvoiceGeneration(req, res));
+router.get('/orders/:id/invoice-pdf', (req, res) => admin_controller_1.adminController.getInvoicePdf(req, res));
+exports.adminRoutes = router;

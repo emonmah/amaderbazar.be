@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.inventoryRoutes = void 0;
+const express_1 = require("express");
+const inventory_controller_1 = require("./inventory.controller");
+const router = (0, express_1.Router)();
+router.post('/reserve', (req, res) => inventory_controller_1.inventoryController.reserve(req, res));
+router.post('/release', (req, res) => inventory_controller_1.inventoryController.release(req, res));
+router.get('/stock/:variantSku', (req, res) => inventory_controller_1.inventoryController.getStock(req, res));
+exports.inventoryRoutes = router;
