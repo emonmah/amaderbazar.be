@@ -5,15 +5,21 @@ import { logger } from '../observability/logger';
 
 let redisClient: any;
 
-const realRedis = new Redis({
-  host: config.redis.host,
-  port: config.redis.port,
-  password: config.redis.password,
+const redisOptions = {
   maxRetriesPerRequest: null,
   lazyConnect: true,
-  connectTimeout: 2000,
+  connectTimeout: 5000,
   retryStrategy: () => null, // don't hang if offline
-});
+};
+
+const realRedis = process.env.REDIS_URL
+  ? new Redis(process.env.REDIS_URL, redisOptions)
+  : new Redis({
+      host: config.redis.host,
+      port: config.redis.port,
+      password: config.redis.password,
+      ...redisOptions,
+    });
 
 // Lua scripts
 export const ATOMIC_RESERVE_SCRIPT = `

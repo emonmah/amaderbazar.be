@@ -32,6 +32,7 @@ const logistics_routes_1 = require("./modules/logistics/logistics.routes");
 const admin_routes_1 = require("./modules/admin/admin.routes");
 // Import workers to activate BullMQ processors
 require("./workers");
+const keepAlive_1 = require("./utils/keepAlive");
 // 1. Initialize OpenTelemetry Tracing
 (0, tracing_1.startTracing)();
 const app = (0, express_1.default)();
@@ -67,8 +68,8 @@ app.use((0, cors_1.default)({
     credentials: true,
 }));
 app.use((0, cookie_parser_1.default)());
-app.use(express_1.default.json());
-app.use(express_1.default.urlencoded({ extended: true }));
+app.use(express_1.default.json({ limit: '50mb' }));
+app.use(express_1.default.urlencoded({ limit: '50mb', extended: true }));
 // 4. Observability & Logging Middleware
 app.use((0, pino_http_1.default)({
     logger: logger_1.logger,
@@ -111,9 +112,13 @@ app.get('/health', async (req, res) => {
         redisStatus = 'error';
     }
     const isHealthy = mongoStatus === 'connected' && redisStatus === 'connected';
+    const uptimeSec = Math.floor(process.uptime());
+    const uptimeMin = Math.floor(uptimeSec / 60);
     res.status(isHealthy ? 200 : 503).json({
         status: isHealthy ? 'healthy' : 'degraded',
-        uptimeSeconds: process.uptime(),
+        uptimeSeconds: uptimeSec,
+        uptimeFormatted: `${uptimeMin}m ${uptimeSec % 60}s`,
+        antiSleepKeepAlive: (0, keepAlive_1.getKeepAliveStatus)(),
         timestamp: new Date(),
         tenantMode: config_1.config.tenantMode,
         services: {
@@ -163,6 +168,8 @@ async function startServer() {
             logger_1.logger.info(`🚀 Server running on port ${config_1.config.port} in ${config_1.config.env} mode`);
             logger_1.logger.info(`📊 Prometheus metrics available at http://localhost:${config_1.config.port}/metrics`);
             logger_1.logger.info(`💓 Health probe available at http://localhost:${config_1.config.port}/health`);
+            // Start 10-minute anti-sleep heartbeat to prevent Render free tier from pausing backend
+            (0, keepAlive_1.startKeepAliveSelfPing)();
         });
     }
     catch (error) {

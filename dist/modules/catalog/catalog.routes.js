@@ -18,6 +18,11 @@ router.get('/sliders', (req, res) => catalog_controller_1.catalogController.getS
 router.post('/sliders', (req, res) => catalog_controller_1.catalogController.createSlider(req, res));
 router.put('/sliders/:id', (req, res) => catalog_controller_1.catalogController.updateSlider(req, res));
 router.delete('/sliders/:id', (req, res) => catalog_controller_1.catalogController.deleteSlider(req, res));
+// Categories
+router.get('/categories', (req, res) => catalog_controller_1.catalogController.getCategories(req, res));
+router.post('/categories', (req, res) => catalog_controller_1.catalogController.createCategory(req, res));
+router.put('/categories/:id', (req, res) => catalog_controller_1.catalogController.updateCategory(req, res));
+router.delete('/categories/:id', (req, res) => catalog_controller_1.catalogController.deleteCategory(req, res));
 // ==========================================
 // Admin mutations (Products, Hot Deals, Discounts)
 // ==========================================

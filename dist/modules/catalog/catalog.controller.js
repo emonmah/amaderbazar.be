@@ -7,6 +7,7 @@ exports.catalogController = exports.CatalogController = void 0;
 const Product_1 = require("../../models/Product");
 const Slider_1 = require("../../models/Slider");
 const Review_1 = require("../../models/Review");
+const Category_1 = require("../../models/Category");
 const redis_1 = require("../../config/redis");
 const logger_1 = require("../../observability/logger");
 const axios_1 = __importDefault(require("axios"));
@@ -325,6 +326,149 @@ class CatalogController {
         }
         catch (error) {
             res.status(500).json({ error: 'Failed to submit review', message: error.message });
+        }
+    }
+    /**
+     * Category Management (Storefront & Admin)
+     */
+    async getCategories(req, res) {
+        try {
+            const tenantId = req.tenantId;
+            const includeInactive = req.query.all === 'true';
+            const cacheKey = `catalog:${tenantId}:categories:${includeInactive ? 'all' : 'active'}`;
+            const cached = await redis_1.redis.get(cacheKey);
+            if (cached) {
+                res.setHeader('X-Cache', 'HIT');
+                return res.json(JSON.parse(cached));
+            }
+            const query = { tenantId };
+            if (!includeInactive) {
+                query.isActive = true;
+            }
+            let categories = await Category_1.CategoryModel.find(query).sort({ displayOrder: 1, createdAt: 1 }).lean();
+            // Auto-seed default categories if empty for this tenant
+            if (categories.length === 0 && !includeInactive) {
+                const count = await Category_1.CategoryModel.countDocuments({ tenantId });
+                if (count === 0) {
+                    logger_1.logger.info({ tenantId }, 'Auto-seeding default categories for tenant');
+                    const defaultCategories = [
+                        { name: 'মধু ও ঘি', slug: 'honey-and-ghee', icon: '🍯', description: 'সুন্দরবনের খাঁটি মধু ও সুগন্ধি গাওয়া ঘি', displayOrder: 1 },
+                        { name: 'তেল ও বীজ', slug: 'oil-and-seeds', icon: '🫒', description: 'ঘানি ভাঙা সরিষা ও কালোজিরা তেল', displayOrder: 2 },
+                        { name: 'ড্রাই ফ্রুটস ও বাদাম', slug: 'dry-fruits-nuts', icon: '🥜', description: 'মেডজুল খেজুর ও কাজু-পেস্তা বাদাম', displayOrder: 3 },
+                        { name: 'মসলা ও ডাল', slug: 'spices-and-pulses', icon: '🌾', description: 'খাঁটি মসলা ও প্রিমিয়াম বাসমতি চাল', displayOrder: 4 },
+                        { name: 'অর্গানিক স্বাস্থ্য', slug: 'organic-health', icon: '🌿', description: 'চিয়া সিড ও ভেষজ সম্পূরক', displayOrder: 5 },
+                    ];
+                    await Category_1.CategoryModel.insertMany(defaultCategories.map((cat) => ({
+                        ...cat,
+                        tenantId,
+                        isActive: true,
+                    })));
+                    categories = await Category_1.CategoryModel.find(query).sort({ displayOrder: 1, createdAt: 1 }).lean();
+                }
+            }
+            await redis_1.redis.set(cacheKey, JSON.stringify(categories), 'EX', 600);
+            res.setHeader('X-Cache', 'MISS');
+            res.json(categories);
+        }
+        catch (error) {
+            logger_1.logger.error({ error }, 'Failed to fetch categories');
+            res.status(500).json({ error: 'Failed to fetch categories', message: error.message });
+        }
+    }
+    async createCategory(req, res) {
+        try {
+            const tenantId = req.tenantId;
+            const { name, slug, icon, imageUrl, description, displayOrder, isActive } = req.body;
+            if (!name || !name.trim()) {
+                return res.status(400).json({ error: 'Category name is required' });
+            }
+            const generatedSlug = (slug || name)
+                .toLowerCase()
+                .trim()
+                .replace(/[^a-zA-Z0-9\u0980-\u09FF\s-]/g, '')
+                .replace(/\s+/g, '-');
+            const existing = await Category_1.CategoryModel.findOne({
+                tenantId,
+                $or: [{ slug: generatedSlug }, { name: name.trim() }],
+            });
+            if (existing) {
+                return res.status(400).json({ error: 'এই নামের বা স্লাগের ক্যাটাগরি ইতিমধ্যে বিদ্যমান রয়েছে (Category already exists)' });
+            }
+            const category = await Category_1.CategoryModel.create({
+                tenantId,
+                name: name.trim(),
+                slug: generatedSlug,
+                icon: icon || '🌿',
+                imageUrl: imageUrl || '',
+                description: description || '',
+                displayOrder: typeof displayOrder === 'number' ? displayOrder : 0,
+                isActive: isActive !== false,
+            });
+            await this.invalidateCategoryCache(tenantId);
+            res.status(201).json(category);
+        }
+        catch (error) {
+            logger_1.logger.error({ error }, 'Failed to create category');
+            res.status(500).json({ error: 'Failed to create category', message: error.message });
+        }
+    }
+    async updateCategory(req, res) {
+        try {
+            const tenantId = req.tenantId;
+            const { id } = req.params;
+            const { name, slug, icon, imageUrl, description, displayOrder, isActive } = req.body;
+            const category = await Category_1.CategoryModel.findOne({ _id: id, tenantId });
+            if (!category) {
+                return res.status(404).json({ error: 'Category not found' });
+            }
+            if (name)
+                category.name = name.trim();
+            if (slug)
+                category.slug = slug.toLowerCase().trim().replace(/\s+/g, '-');
+            if (icon !== undefined)
+                category.icon = icon;
+            if (imageUrl !== undefined)
+                category.imageUrl = imageUrl;
+            if (description !== undefined)
+                category.description = description;
+            if (typeof displayOrder === 'number')
+                category.displayOrder = displayOrder;
+            if (isActive !== undefined)
+                category.isActive = isActive;
+            await category.save();
+            await this.invalidateCategoryCache(tenantId);
+            res.json(category);
+        }
+        catch (error) {
+            logger_1.logger.error({ error }, 'Failed to update category');
+            res.status(500).json({ error: 'Failed to update category', message: error.message });
+        }
+    }
+    async deleteCategory(req, res) {
+        try {
+            const tenantId = req.tenantId;
+            const { id } = req.params;
+            const category = await Category_1.CategoryModel.findOneAndDelete({ _id: id, tenantId });
+            if (!category) {
+                return res.status(404).json({ error: 'Category not found' });
+            }
+            await this.invalidateCategoryCache(tenantId);
+            res.json({ success: true, message: 'Category deleted successfully' });
+        }
+        catch (error) {
+            logger_1.logger.error({ error }, 'Failed to delete category');
+            res.status(500).json({ error: 'Failed to delete category', message: error.message });
+        }
+    }
+    async invalidateCategoryCache(tenantId) {
+        try {
+            const keys = await redis_1.redis.keys(`catalog:${tenantId}:categories:*`);
+            if (keys.length > 0) {
+                await redis_1.redis.del(...keys);
+            }
+        }
+        catch (err) {
+            logger_1.logger.warn({ err }, 'Error during category cache invalidation');
         }
     }
     async invalidateCatalogCache(tenantId, slug) {

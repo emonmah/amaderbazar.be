@@ -10,15 +10,20 @@ const ioredis_mock_1 = __importDefault(require("ioredis-mock"));
 const index_1 = require("./index");
 const logger_1 = require("../observability/logger");
 let redisClient;
-const realRedis = new ioredis_1.default({
-    host: index_1.config.redis.host,
-    port: index_1.config.redis.port,
-    password: index_1.config.redis.password,
+const redisOptions = {
     maxRetriesPerRequest: null,
     lazyConnect: true,
-    connectTimeout: 2000,
+    connectTimeout: 5000,
     retryStrategy: () => null, // don't hang if offline
-});
+};
+const realRedis = process.env.REDIS_URL
+    ? new ioredis_1.default(process.env.REDIS_URL, redisOptions)
+    : new ioredis_1.default({
+        host: index_1.config.redis.host,
+        port: index_1.config.redis.port,
+        password: index_1.config.redis.password,
+        ...redisOptions,
+    });
 // Lua scripts
 exports.ATOMIC_RESERVE_SCRIPT = `
   local reservedKey = KEYS[1]

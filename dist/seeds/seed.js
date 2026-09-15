@@ -12,6 +12,7 @@ const Product_1 = require("../models/Product");
 const Order_1 = require("../models/Order");
 const Slider_1 = require("../models/Slider");
 const Review_1 = require("../models/Review");
+const Category_1 = require("../models/Category");
 async function seedDatabase() {
     console.log('🌱 Starting MongoDB seed for Amader Bazar E-Commerce...');
     await mongoose_1.default.connect(config_1.config.mongoUri);
@@ -27,6 +28,7 @@ async function seedDatabase() {
         Order_1.OrderModel.deleteMany({}),
         Slider_1.SliderModel.deleteMany({}),
         Review_1.ReviewModel.deleteMany({}),
+        Category_1.CategoryModel.deleteMany({}),
     ]);
     const passwordHash = await bcryptjs_1.default.hash('Password123!', 10);
     // 1. Create Tenant (Amader Bazar)
@@ -71,7 +73,56 @@ async function seedDatabase() {
         },
     ]);
     console.log(`✅ Seeded ${users.length} RBAC Users`);
-    // 3. Create Authentic Ghorebazar Products
+    // 2.5 Seed Product Categories
+    const categories = await Category_1.CategoryModel.create([
+        {
+            tenantId: tenantAmaderBazar.tenantId,
+            name: 'মধু ও ঘি',
+            slug: 'honey-and-ghee',
+            icon: '🍯',
+            description: 'সুন্দরবনের খাঁটি মধু ও সুগন্ধি গাওয়া ঘি',
+            displayOrder: 1,
+            isActive: true,
+        },
+        {
+            tenantId: tenantAmaderBazar.tenantId,
+            name: 'তেল ও বীজ',
+            slug: 'oil-and-seeds',
+            icon: '🫒',
+            description: 'ঘানি ভাঙা সরিষা ও কালোজিরা তেল',
+            displayOrder: 2,
+            isActive: true,
+        },
+        {
+            tenantId: tenantAmaderBazar.tenantId,
+            name: 'ড্রাই ফ্রুটস ও বাদাম',
+            slug: 'dry-fruits-nuts',
+            icon: '🥜',
+            description: 'মেডজুল খেজুর ও কাজু-পেস্তা বাদাম',
+            displayOrder: 3,
+            isActive: true,
+        },
+        {
+            tenantId: tenantAmaderBazar.tenantId,
+            name: 'মসলা ও ডাল',
+            slug: 'spices-and-pulses',
+            icon: '🌾',
+            description: 'খাঁটি মসলা ও প্রিমিয়াম বাসমতি চাল',
+            displayOrder: 4,
+            isActive: true,
+        },
+        {
+            tenantId: tenantAmaderBazar.tenantId,
+            name: 'অর্গানিক স্বাস্থ্য',
+            slug: 'organic-health',
+            icon: '🌿',
+            description: 'চিয়া সিড ও ভেষজ সম্পূরক',
+            displayOrder: 5,
+            isActive: true,
+        },
+    ]);
+    console.log(`✅ Seeded ${categories.length} Categories`);
+    // 3. Create Authentic Amader Bazar Products
     const products = await Product_1.ProductModel.create([
         {
             tenantId: tenantAmaderBazar.tenantId,
