@@ -95,7 +95,7 @@ export class AuthController {
       res.cookie('refreshToken', rawRefreshToken, {
         httpOnly: true,
         secure: config.isProduction,
-        sameSite: 'strict',
+        sameSite: config.isProduction ? 'strict' : 'lax',
         maxAge: config.jwt.refreshExpiresIn * 1000,
       });
 
@@ -168,7 +168,7 @@ export class AuthController {
       res.cookie('refreshToken', newRawRefreshToken, {
         httpOnly: true,
         secure: config.isProduction,
-        sameSite: 'strict',
+        sameSite: config.isProduction ? 'strict' : 'lax',
         maxAge: config.jwt.refreshExpiresIn * 1000,
       });
 
@@ -262,7 +262,7 @@ export class AuthController {
       res.cookie('refreshToken', rawRefreshToken, {
         httpOnly: true,
         secure: config.isProduction,
-        sameSite: 'strict',
+        sameSite: config.isProduction ? 'strict' : 'lax',
         maxAge: config.jwt.refreshExpiresIn * 1000,
       });
 

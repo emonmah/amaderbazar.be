@@ -21,6 +21,8 @@ const realRedis = process.env.REDIS_URL
       ...redisOptions,
     });
 
+realRedis.on('error', () => undefined);
+
 // Lua scripts
 export const ATOMIC_RESERVE_SCRIPT = `
   local reservedKey = KEYS[1]
